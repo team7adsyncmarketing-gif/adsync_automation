@@ -31,11 +31,35 @@ def export_sqlite_to_json():
     c = conn.cursor()
     data = {}
 
-    tables = ["reels", "reel_analyses", "adsync_ideas", "competitors", "video_catalog", "reel_publications"]
+    # Strict dependency order to maintain foreign-key integrity
+    tables = [
+        "reels",
+        "reel_analyses",
+        "adsync_ideas",
+        "competitors",
+        "competitor_reel_snapshots",
+        "video_catalog",
+        "reel_publications"
+    ]
     for t in tables:
         try:
             c.execute(f"SELECT * FROM {t}")
             rows = [dict(r) for r in c.fetchall()]
+
+            # Convert SQLite integer values (0/1) to native booleans for PostgreSQL
+            if t == "reels":
+                for row in rows:
+                    if "is_mock" in row and row["is_mock"] is not None:
+                        row["is_mock"] = bool(row["is_mock"])
+                    if "is_original_audio" in row and row["is_original_audio"] is not None:
+                        row["is_original_audio"] = bool(row["is_original_audio"])
+            elif t == "competitors":
+                for row in rows:
+                    if "verified" in row and row["verified"] is not None:
+                        row["verified"] = bool(row["verified"])
+                    if "is_private" in row and row["is_private"] is not None:
+                        row["is_private"] = bool(row["is_private"])
+
             data[t] = rows
             print(f"Extracted {len(rows)} records from SQLite table '{t}'")
         except Exception as e:
