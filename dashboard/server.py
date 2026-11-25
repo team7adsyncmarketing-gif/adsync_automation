@@ -47,6 +47,9 @@ VIDEOS_DIR = PROJECT_ROOT / "output" / "videos"
 STATIC_DIR = PROJECT_ROOT / "dashboard" / "static"
 DB_PATH = PROJECT_ROOT / "trend_engine" / "data" / "trends.db"
 
+VIDEOS_DIR.mkdir(parents=True, exist_ok=True)
+DB_PATH.parent.mkdir(parents=True, exist_ok=True)
+
 # Mount static and videos
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.mount("/videos", StaticFiles(directory=str(VIDEOS_DIR)), name="videos")
