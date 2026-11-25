@@ -1,0 +1,36 @@
+# Environment & Secrets
+.env
+.env.*
+!.env.example
+*.key
+*.token
+
+# Databases & Local Data
+*.db
+*.sqlite
+*.sqlite3
+data/*.db
+trend_engine/data/*.db
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+
+# Virtual Environments
+venv/
+env/
+.venv/
+
+# Logs & Temp
+*.log
+review/
+renders/
+tmp/
+output/
+
+

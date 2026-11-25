@@ -1,0 +1,25 @@
+# Production Dockerfile for AdSync Control Center Backend & Dashboard
+FROM python:3.11-slim-bookworm
+
+ENV PYTHONUNBUFFERED=1
+ENV ENVIRONMENT=production
+
+WORKDIR /app
+
+# Install system dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl \
+    ca-certificates \
+    libpq-dev \
+    gcc \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+COPY . .
+
+EXPOSE 8000
+
+CMD ["sh", "-c", "uvicorn dashboard.server:app --host 0.0.0.0 --port ${PORT:-8000}"]

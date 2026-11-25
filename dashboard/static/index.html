@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AdSync Control Center</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-base: #0B0E14;
+      --bg-card: #151922;
+      --bg-card-hover: #1C222E;
+      --bg-input: #10141D;
+      --border: #232936;
+      --border-focus: #3B82F6;
+      --text-main: #F3F4F6;
+      --text-muted: #9CA3AF;
+      --text-dim: #6B7280;
+      --accent-blue: #3B82F6;
+      --accent-purple: #8B5CF6;
+      --accent-green: #10B981;
+      --accent-yellow: #F59E0B;
+      --accent-red: #EF4444;
+      --accent-gradient: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 100%);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+    }
+
+    /* Sidebar */
+    .sidebar {
+      width: 260px;
+      background: #0E121B;
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      position: fixed;
+      height: 100vh;
+      z-index: 10;
+    }
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 12px 24px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+    .brand-icon {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-gradient);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 18px;
+    }
+    .brand-title { font-weight: 700; font-size: 16px; letter-spacing: -0.3px; }
+    .brand-subtitle { font-size: 11px; color: var(--text-dim); text-transform: uppercase; font-weight: 600; letter-spacing: 0.5px; }
+
+    .nav-list { list-style: none; display: flex; flex-direction: column; gap: 4px; }
+    .nav-btn {
+      width: 100%;
+      text-align: left;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 12px 14px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      font-weight: 600;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: all 0.15s ease;
+    }
+    .nav-btn:hover { background: var(--bg-card); color: var(--text-main); }
+    .nav-btn.active { background: var(--accent-blue); color: #fff; }
+
+    .sidebar-footer {
+      margin-top: auto;
+      padding: 16px 12px;
+      border-top: 1px solid var(--border);
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 8px;
+      border-radius: 999px;
+      background: rgba(16, 185, 129, 0.12);
+      color: var(--accent-green);
+      font-size: 11px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .status-dot { width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
+
+    /* Main Content */
+    .main-wrap {
+      margin-left: 260px;
+      flex: 1;
+      padding: 32px 40px;
+      max-width: 1400px;
+    }
+
+    .header-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 28px;
+    }
+    .page-title { font-size: 24px; font-weight: 800; letter-spacing: -0.5px; }
+    .page-desc { color: var(--text-muted); font-size: 13px; margin-top: 4px; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .stat-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 20px;
+      transition: border-color 0.15s;
+    }
+    .stat-card:hover { border-color: rgba(255,255,255,0.15); }
+    .stat-label { font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-val { font-size: 28px; font-weight: 800; margin-top: 8px; }
+    .stat-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 4px; }
+
+    /* Sections */
+    .section-block { display: none; }
+    .section-block.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .card-title { font-size: 16px; font-weight: 700; margin-bottom: 6px; }
+    .card-subtitle { font-size: 13px; color: var(--text-muted); margin-bottom: 20px; }
+
+    /* Forms */
+    .form-group { margin-bottom: 18px; }
+    .form-label { display: block; font-size: 12.5px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+    .form-input, .form-select, .form-textarea {
+      width: 100%;
+      background: var(--bg-input);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 14px;
+      color: var(--text-main);
+      font-size: 13.5px;
+      font-family: inherit;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--border-focus); }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+    }
+    .btn-primary { background: var(--accent-gradient); color: #fff; }
+    .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+    .btn-success { background: var(--accent-green); color: #fff; }
+    .btn-success:hover { opacity: 0.9; }
+    .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+    .btn-outline:hover { background: var(--bg-card-hover); }
+    .btn-danger { background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--accent-red); }
+    .btn-danger:hover { background: rgba(239, 68, 68, 0.25); }
+
+    /* Video Preview & Approval Split */
+    .split-layout { display: grid; grid-template-columns: 360px 1fr; gap: 24px; }
+    .video-frame {
+      background: #000;
+      border-radius: 12px;
+      overflow: hidden;
+      aspect-ratio: 9/16;
+      width: 100%;
+      border: 1px solid var(--border);
+    }
+    video { width: 100%; height: 100%; object-fit: cover; }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; text-align: left; }
+    th { padding: 12px 16px; border-bottom: 1px solid var(--border); color: var(--text-dim); font-size: 11.5px; text-transform: uppercase; font-weight: 700; letter-spacing: 0.5px; }
+    td { padding: 14px 16px; border-bottom: 1px solid var(--border); color: var(--text-muted); }
+    tr:hover td { background: rgba(255,255,255,0.015); color: var(--text-main); }
+    .badge {
+      display: inline-block;
+      padding: 3px 8px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .badge-published { background: rgba(16, 185, 129, 0.15); color: var(--accent-green); border: 1px solid rgba(16, 185, 129, 0.3); }
+    .badge-dryrun { background: rgba(245, 158, 11, 0.15); color: var(--accent-yellow); border: 1px solid rgba(245, 158, 11, 0.3); }
+    .badge-approved { background: rgba(59, 130, 246, 0.15); color: var(--accent-blue); border: 1px solid rgba(59, 130, 246, 0.3); }
+    .badge-pending { background: rgba(107, 114, 128, 0.15); color: var(--text-muted); border: 1px solid var(--border); }
+
+    /* Alert / Modal / Toast */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 14px 20px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+      z-index: 999;
+      display: none;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .toast.success { border-color: var(--accent-green); color: var(--accent-green); }
+    .toast.error { border-color: var(--accent-red); color: var(--accent-red); }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">A</div>
+      <div>
+        <div class="brand-title">AdSync Control</div>
+        <div class="brand-subtitle">Autonomous Engine</div>
+      </div>
+    </div>
+
+    <ul class="nav-list">
+      <li><button class="nav-btn active" data-tab="overview" onclick="switchTab('overview')">📊 Overview & Stats</button></li>
+      <li><button class="nav-btn" data-tab="trends" onclick="switchTab('trends')">🔥 Trend Discovery</button></li>
+      <li><button class="nav-btn" data-tab="competitors" onclick="switchTab('competitors')">🎯 Competitors</button></li>
+      <li><button class="nav-btn" data-tab="insights" onclick="switchTab('insights')">💡 Content Insights</button></li>
+      <li><button class="nav-btn" data-tab="generator" onclick="switchTab('generator')">🎬 Video Generator</button></li>
+      <li><button class="nav-btn" data-tab="approval" onclick="switchTab('approval')">✅ Preview & Approval</button></li>
+      <li><button class="nav-btn" data-tab="publisher" onclick="switchTab('publisher')">🚀 Multi-Publisher</button></li>
+      <li><button class="nav-btn" data-tab="history" onclick="switchTab('history')">📜 Publication History</button></li>
+    </ul>
+
+    <div class="sidebar-footer">
+      <div class="status-badge"><span class="status-dot"></span> Engine Online</div>
+      <div>Account: <b id="side-account">@matteroffactimnothing</b></div>
+      <div style="margin-top: 4px;">Dry-Run: <span id="side-dryrun" style="color:var(--accent-yellow)">ACTIVE</span></div>
+    </div>
+  </aside>
+
+  <!-- Main Wrap -->
+  <main class="main-wrap">
+    
+    <!-- Tab 1: Overview -->
+    <section id="tab-overview" class="section-block active">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Executive Command Center</h1>
+          <p class="page-desc">Real-time status of data ingestion, video generation, and platform publications.</p>
+        </div>
+        <button class="btn btn-outline" onclick="loadOverview()">🔄 Refresh</button>
+      </div>
+
+      <div class="stats-grid">
+        <div class="stat-card">
+          <div class="stat-label">Reels Analyzed</div>
+          <div class="stat-val" id="stat-reels">--</div>
+          <div class="stat-sub">Ingested discovery signals</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Marketing Ideas</div>
+          <div class="stat-val" id="stat-ideas">--</div>
+          <div class="stat-sub">Ranked AdSync concepts</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Competitors</div>
+          <div class="stat-val" id="stat-comps">--</div>
+          <div class="stat-sub">Tracked Instagram handles</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Videos Created</div>
+          <div class="stat-val" id="stat-videos">--</div>
+          <div class="stat-sub">Faceless Shorts library</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Approved for Publish</div>
+          <div class="stat-val" style="color:var(--accent-blue)" id="stat-approved">--</div>
+          <div class="stat-sub">Manual review cleared</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label">Live Publications</div>
+          <div class="stat-val" style="color:var(--accent-green)" id="stat-live">--</div>
+          <div class="stat-sub">Verified on Instagram</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">System & Integration Status</h3>
+        <p class="card-subtitle">Active configurations loaded safely from root .env</p>
+        <div class="form-row">
+          <div><b>Instagram Target:</b> <span id="cfg-ig-acc">Loading...</span></div>
+          <div><b>Instagram Dry-Run:</b> <span id="cfg-ig-dry">Loading...</span></div>
+          <div><b>Supabase Storage:</b> <span id="cfg-sb-status" style="color:var(--accent-green)">Connected (adsync-reels)</span></div>
+          <div><b>YouTube API:</b> <span id="cfg-yt-status">Available (Dry-Run Protected)</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 2: Trends -->
+    <section id="tab-trends" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Trend Intelligence & Discovery Engine</h1>
+          <p class="page-desc">Discovered Reels, emerging topics, engagement momentum, and original AI marketing concepts.</p>
+        </div>
+        <button class="btn btn-outline" onclick="loadTrends(); loadIdeas();">🔄 Refresh Trends</button>
+      </div>
+
+      <!-- Trending Categories / Momentum -->
+      <div class="card">
+        <h3 class="card-title">Trending Categories & Momentum</h3>
+        <p class="card-subtitle">Aggregated momentum, average engagement rate, and volume across business categories.</p>
+        <div id="category-cards-grid" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap:14px;">
+          <!-- Populated by loadTrends -->
+        </div>
+      </div>
+
+      <!-- Emerging Topics -->
+      <div class="card">
+        <h3 class="card-title">Emerging Topic Clusters</h3>
+        <p class="card-subtitle">Topics with multi-creator momentum, high engagement velocities, and validation signals.</p>
+        <div class="table-wrap">
+          <table id="emerging-topics-table">
+            <thead>
+              <tr>
+                <th>Topic / Keyword</th>
+                <th>Category</th>
+                <th>Multi-Creator Validation</th>
+                <th>Avg Trend Score</th>
+                <th>Total Views</th>
+                <th>Validation Explanation</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Discovered Reels -->
+      <div class="card">
+        <h3 class="card-title">Discovered Instagram Reels & Engagement Scores</h3>
+        <p class="card-subtitle">Real-time scored reels evaluated for engagement, virality, and creator outperformance.</p>
+        <div class="table-wrap">
+          <table id="discovered-reels-table">
+            <thead>
+              <tr>
+                <th>Reel / Creator</th>
+                <th>Category</th>
+                <th>Views</th>
+                <th>Likes / Comments</th>
+                <th>Eng. Score</th>
+                <th>Pop. Score</th>
+                <th>Trending Score</th>
+                <th>Insight / Performance</th>
+                <th>Link</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- High-Opportunity Marketing Ideas -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 class="card-title">Generated AdSync Marketing Concepts</h3>
+            <p class="card-subtitle">High-opportunity video concepts synthesized from trending Reels and competitor gaps.</p>
+          </div>
+          <div style="display:flex; align-items:center; gap:10px;">
+            <select id="idea-gen-category" class="form-select" style="width: auto; padding: 6px 12px; font-size: 12px;">
+              <option value="Meta Ads">Meta Ads</option>
+              <option value="Instagram Marketing">Instagram Marketing</option>
+              <option value="Lead Generation">Lead Generation</option>
+              <option value="Marketing Automation">Marketing Automation</option>
+              <option value="Branding">Branding</option>
+              <option value="Business Growth">Business Growth</option>
+            </select>
+            <button id="btn-generate-idea" class="btn btn-primary" style="padding: 6px 14px; font-size: 12px;" onclick="generateNewIdea()">
+              ⚡ Generate New Ideas with AI Director
+            </button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table id="ideas-table">
+            <thead>
+              <tr>
+                <th>Score</th>
+                <th>Category</th>
+                <th>Topic & Business Problem</th>
+                <th>Recommended Style</th>
+                <th>Suggested Hook</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: Competitors -->
+    <section id="tab-competitors" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Competitor Intelligence Center</h1>
+          <p class="page-desc">Track and benchmark competitor Instagram handles, audience reach, and content strategies.</p>
+        </div>
+        <button class="btn btn-outline" onclick="loadCompetitors(); loadCompetitorComparison();">🔄 Refresh Competitors</button>
+      </div>
+
+      <!-- Add Competitor Form -->
+      <div class="card">
+        <h3 class="card-title">Track New Competitor Handle</h3>
+        <p class="card-subtitle">Add an Instagram handle to track audience size, publishing velocity, and content strategies.</p>
+        <form onsubmit="handleAddCompetitor(event)">
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Instagram Handle</label>
+              <input type="text" id="comp-handle" class="form-input" placeholder="e.g. ad_agency_pro" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Category</label>
+              <select id="comp-category" class="form-select">
+                <option value="Meta Ads Specialists">Meta Ads Specialists</option>
+                <option value="Lead Generation Experts">Lead Generation Experts</option>
+                <option value="Marketing Automation">Marketing Automation</option>
+                <option value="Branding & Content">Branding & Content</option>
+                <option value="E-Commerce Growth">E-Commerce Growth</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Notes & Strategy</label>
+              <input type="text" id="comp-notes" class="form-input" placeholder="e.g. Scaling DTC funnels">
+            </div>
+          </div>
+          <button type="submit" id="btn-add-comp" class="btn btn-primary">➕ Track & Sync Competitor</button>
+        </form>
+      </div>
+
+      <!-- Tracked Competitors Table -->
+      <div class="card">
+        <h3 class="card-title">Tracked Competitors</h3>
+        <p class="card-subtitle">Active competitor profiles with mock/live audience and content benchmarks.</p>
+        <div class="table-wrap">
+          <table id="competitors-table">
+            <thead>
+              <tr>
+                <th>Handle / Profile</th>
+                <th>Category</th>
+                <th>Followers</th>
+                <th>Following</th>
+                <th>Tracked Posts</th>
+                <th>Strategy Notes</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Performance Comparison & Rankings -->
+      <div class="card">
+        <h3 class="card-title">Cross-Competitor Benchmarking & Rankings</h3>
+        <p class="card-subtitle">Automated comparative rankings by popularity, reach, and engagement.</p>
+        <div id="comparison-container" style="display:grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px;">
+          <!-- Populated by loadCompetitorComparison -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab: Content Insights -->
+    <section id="tab-insights" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Content & Hook Intelligence</h1>
+          <p class="page-desc">Empirical hook categories, video formats, and niche blueprints derived from analyzed Reels.</p>
+        </div>
+        <button class="btn btn-outline" onclick="loadInsights()">🔄 Refresh Insights</button>
+      </div>
+
+      <!-- Hook & Format Summary Grid -->
+      <div style="display:grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;">
+        <div class="card" style="margin-bottom:0;">
+          <h3 class="card-title">🎣 Best Performing Hook Categories</h3>
+          <p class="card-subtitle">Hook archetypes delivering highest engagement and completion rates.</p>
+          <div class="table-wrap">
+            <table id="best-hooks-table">
+              <thead>
+                <tr>
+                  <th>Hook Category</th>
+                  <th>Avg Eng. Score</th>
+                  <th>Sample Count</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:0;">
+          <h3 class="card-title">📊 Video Formats & CTAs</h3>
+          <p class="card-subtitle">Visual structures and call-to-action distribution.</p>
+          <div class="table-wrap">
+            <table id="formats-table">
+              <thead>
+                <tr>
+                  <th>Format / Pattern</th>
+                  <th>Classification</th>
+                  <th>Performance Signal</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- Strategic Niche Blueprints -->
+      <div class="card">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+          <div>
+            <h3 class="card-title">📐 Strategic Niche Content Blueprints</h3>
+            <p class="card-subtitle">Battle-tested structures, CTA strategies, and ready-to-use hook templates per marketing niche.</p>
+          </div>
+          <select id="niche-blueprint-select" class="form-select" style="width: auto; padding: 6px 14px; font-size: 13px;" onchange="renderActiveBlueprint()">
+            <option value="Meta Ads">Meta Ads</option>
+            <option value="Instagram Marketing">Instagram Marketing</option>
+            <option value="Lead Generation">Lead Generation</option>
+            <option value="Marketing Automation">Marketing Automation</option>
+            <option value="Branding">Branding</option>
+            <option value="Business Growth">Business Growth</option>
+          </select>
+        </div>
+
+        <div id="blueprint-content-box" style="background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+          <!-- Populated by renderActiveBlueprint -->
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 3: Video Generator -->
+    <section id="tab-generator" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Faceless Shorts Video Studio</h1>
+          <p class="page-desc">Generate narrated vertical shorts in code using local Kokoro voice and Whisper sync.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Configure New Video Production</h3>
+        <p class="card-subtitle">Select style, voice artist, and input the core marketing topic.</p>
+
+        <form id="create-video-form" onsubmit="handleCreateVideo(event)">
+          <div class="form-group">
+            <label class="form-label">Video Topic or Problem Statement</label>
+            <input type="text" id="gen-topic" class="form-input" placeholder="e.g. Why businesses get Instagram views but no customers" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Animation Style</label>
+              <select id="gen-style" class="form-select">
+                <option value="stick-story" selected>Stick Story (2D Survival / Step-by-Step Problem Solver)</option>
+                <option value="inside-out">Inside Out (Flat 2D X-Ray & Kinetic Explainer)</option>
+                <option value="tall-tale">Tall Tale 3D (Cartoon Characters in 3D Sets)</option>
+                <option value="deep-dive">Deep Dive 3D (Zack D. Films Style Anatomical Explainer)</option>
+                <option value="paper-atlas">Paper Atlas (Parchment Map & Route Stories)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Voiceover Artist (Kokoro Local)</label>
+              <select id="gen-voice" class="form-select">
+                <option value="am_puck" selected>am_puck (Fast, Punchy, Conversational)</option>
+                <option value="am_michael">am_michael (Storyteller, Natural)</option>
+                <option value="am_adam">am_adam (Authoritative, Direct)</option>
+                <option value="af_bella">af_bella (Warm, Engaging Female)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Background Audio Bed</label>
+              <select id="gen-music" class="form-select">
+                <option value="bed" selected>bed (Subtle Tech / Rhythmic Ambient)</option>
+                <option value="bounce">bounce (Playful, Upbeat Comedy)</option>
+                <option value="tension">tension (Dramatic, High-Stakes)</option>
+              </select>
+            </div>
+          </div>
+
+          <div style="display: flex; align-items: center; gap: 14px; margin-top: 10px;">
+            <button type="submit" id="btn-generate-video" class="btn btn-primary">
+              ⚡ Generate Video Assets & Compile MP4
+            </button>
+            <span id="gen-spinner" style="display:none; font-size: 13px; color: var(--accent-yellow); font-weight: 600;">
+              ⏳ Running AICreativeDirector, Kokoro TTS & Chrome capture (~60s)...
+            </span>
+          </div>
+          <div id="gen-error-box" style="display:none; margin-top: 14px; padding: 12px 16px; background: rgba(239, 68, 68, 0.15); border: 1px solid var(--accent-red); border-radius: 8px; color: var(--accent-red); font-size: 13px;"></div>
+        </form>
+
+        <!-- Generation Result Preview Box -->
+        <div id="gen-result-card" style="display: none; margin-top: 24px; padding-top: 24px; border-top: 1px solid var(--border);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <h4 style="font-size: 16px; font-weight: 700; color: var(--accent-green);">🎉 Video Generated Successfully!</h4>
+            <div style="display:flex; gap: 10px;">
+              <button class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;" onclick="goToApproval()">
+                👁️ Open in Approval Studio
+              </button>
+              <button class="btn btn-outline" style="font-size: 12px; padding: 6px 12px;" onclick="goToHistory()">
+                📜 View in History Ledger
+              </button>
+            </div>
+          </div>
+
+          <div class="split-layout">
+            <div class="video-frame" style="max-height: 520px;">
+              <video id="gen-result-player" controls preload="metadata">
+                <source src="" type="video/mp4">
+              </video>
+            </div>
+            <div>
+              <div class="form-group">
+                <label class="form-label">Generated Title</label>
+                <input type="text" id="gen-result-title" class="form-input" readonly>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Local MP4 File Location</label>
+                <code id="gen-result-path" style="display:block; padding: 8px 12px; background: var(--bg-input); border: 1px solid var(--border); border-radius: 6px; font-size: 12px; color: var(--accent-blue); word-break: break-all;"></code>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Creative Brief & Script Locations</label>
+                <div style="font-size: 12px; color: var(--text-muted);">
+                  📄 Script: <span id="gen-result-script" style="color:var(--text-main);"></span><br>
+                  📋 Brief: <span id="gen-result-brief" style="color:var(--text-main);"></span>
+                </div>
+              </div>
+              <div class="form-group">
+                <label class="form-label">Generated Caption & Hashtags</label>
+                <textarea id="gen-result-caption" rows="4" class="form-textarea" readonly></textarea>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 4: Preview & Approval -->
+    <section id="tab-approval" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Video Preview & Approval Gate</h1>
+          <p class="page-desc">Every video requires explicit manual approval before publication is unlocked.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="form-group">
+          <label class="form-label">Select Video from Library</label>
+          <select id="preview-selector" class="form-select" onchange="loadVideoDetails(this.value)">
+            <option value="">Loading videos...</option>
+          </select>
+        </div>
+
+        <div class="split-layout" style="margin-top: 20px;">
+          <div class="video-frame">
+            <video id="preview-player" controls preload="metadata">
+              <source src="" type="video/mp4">
+            </video>
+          </div>
+
+          <div>
+            <div class="form-group">
+              <label class="form-label">Video Title</label>
+              <input type="text" id="edit-title" class="form-input">
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Caption Copy</label>
+              <textarea id="edit-caption" rows="4" class="form-textarea"></textarea>
+            </div>
+
+            <div class="form-group">
+              <label class="form-label">Hashtags (Space separated)</label>
+              <input type="text" id="edit-hashtags" class="form-input">
+            </div>
+
+            <div style="display: flex; gap: 12px; align-items: center; margin-top: 24px;">
+              <button class="btn btn-outline" onclick="saveVideoEdits()">💾 Save Changes</button>
+              <button id="btn-approve-toggle" class="btn btn-success" onclick="toggleApproval()">
+                ✅ Approve Video for Publication
+              </button>
+              <span id="approval-status-badge" class="badge badge-pending">Status: Unapproved</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 5: Multi-Publisher -->
+    <section id="tab-publisher" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Multi-Platform Publishing Station</h1>
+          <p class="page-desc">Publish approved videos to Instagram Reels and YouTube Shorts with safety guards.</p>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Select Target Video</h3>
+        <select id="publish-video-select" class="form-select" style="margin-bottom: 20px;">
+          <option value="">Choose an approved video...</option>
+        </select>
+
+        <div class="form-row">
+          <!-- Instagram Box -->
+          <div style="background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+            <h4 style="font-size: 15px; margin-bottom: 8px;">📸 Instagram Reels</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+              Target: <b id="pub-ig-target">@matteroffactimnothing</b>
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Execution Mode</label>
+              <select id="pub-ig-mode" class="form-select">
+                <option value="dry_run" selected>Dry Run (Safe Audit Simulation)</option>
+                <option value="live">Live Publishing (Official Meta Graph API)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="executePublishInstagram()" style="width:100%;">
+              🚀 Publish to Instagram
+            </button>
+          </div>
+
+          <!-- YouTube Box -->
+          <div style="background: var(--bg-input); border: 1px solid var(--border); border-radius: 12px; padding: 20px;">
+            <h4 style="font-size: 15px; margin-bottom: 8px;">▶️ YouTube Shorts</h4>
+            <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 16px;">
+              Target: Official YouTube Data API v3
+            </p>
+
+            <div class="form-group">
+              <label class="form-label">Execution Mode</label>
+              <select id="pub-yt-mode" class="form-select">
+                <option value="dry_run" selected>Dry Run (Simulation)</option>
+                <option value="live">Live YouTube Upload (videos.insert)</option>
+              </select>
+            </div>
+
+            <button class="btn btn-primary" onclick="executePublishYouTube()" style="width:100%;">
+              🚀 Upload to YouTube Shorts
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Tab 6: History -->
+    <section id="tab-history" class="section-block">
+      <div class="header-bar">
+        <div>
+          <h1 class="page-title">Publication Audit Ledger</h1>
+          <p class="page-desc">Complete immutable record of all live and simulated publications stored in SQLite.</p>
+        </div>
+        <button class="btn btn-outline" onclick="loadHistory()">🔄 Refresh History</button>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">Generated Videos & Content Pipeline</h3>
+        <p class="card-subtitle">All videos created by the AI Creative Director with playback and review shortcuts.</p>
+        <div class="table-wrap">
+          <table id="generated-videos-table">
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Title / Video ID</th>
+                <th>Category / Style</th>
+                <th>File Location</th>
+                <th>Approval Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top: 24px;">
+        <h3 class="card-title">Publication Audit Ledger</h3>
+        <p class="card-subtitle">Immutable audit trail of all live and simulated publications to Instagram and YouTube.</p>
+        <div class="table-wrap">
+          <table id="history-table">
+            <thead>
+              <tr>
+                <th>Date / Time</th>
+                <th>Platform / ID</th>
+                <th>Status</th>
+                <th>Mode</th>
+                <th>Post ID / Video ID</th>
+                <th>Live Permalink</th>
+                <th>Error</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script>
+    let currentVideos = [];
+    let selectedVideo = null;
+    let latestGeneratedVideo = null;
+    let cachedInsights = null;
+
+    function showToast(msg, type = 'success') {
+      const t = document.getElementById('toast');
+      t.textContent = msg;
+      t.className = `toast ${type}`;
+      t.style.display = 'block';
+      setTimeout(() => { t.style.display = 'none'; }, 4000);
+    }
+
+    function switchTab(tabId) {
+      document.querySelectorAll('.nav-btn').forEach(b => {
+        b.classList.toggle('active', b.getAttribute('data-tab') === tabId);
+      });
+      document.querySelectorAll('.section-block').forEach(s => s.classList.remove('active'));
+      const targetSec = document.getElementById(`tab-${tabId}`);
+      if (targetSec) targetSec.classList.add('active');
+
+      if (tabId === 'overview') loadOverview();
+      if (tabId === 'trends') { loadTrends(); loadIdeas(); }
+      if (tabId === 'competitors') { loadCompetitors(); loadCompetitorComparison(); }
+      if (tabId === 'insights') loadInsights();
+      if (tabId === 'approval') loadVideos();
+      if (tabId === 'publisher') loadPublishVideos();
+      if (tabId === 'history') loadHistory();
+    }
+
+    async function loadOverview() {
+      try {
+        const res = await fetch('/api/overview');
+        const data = await res.json();
+        document.getElementById('stat-reels').textContent = data.total_reels_analyzed;
+        document.getElementById('stat-ideas').textContent = data.total_ideas_generated;
+        const compEl = document.getElementById('stat-comps');
+        if (compEl) compEl.textContent = data.total_competitors || 0;
+        document.getElementById('stat-videos').textContent = data.total_videos_created;
+        document.getElementById('stat-approved').textContent = data.approved_videos_count;
+        document.getElementById('stat-live').textContent = data.live_publications_count;
+
+        document.getElementById('side-account').textContent = data.config.instagram_account;
+        document.getElementById('cfg-ig-acc').textContent = data.config.instagram_account;
+        document.getElementById('cfg-ig-dry').textContent = data.config.instagram_dry_run ? 'ENABLED (Safe)' : 'DISABLED (Live Mode)';
+        document.getElementById('side-dryrun').textContent = data.config.instagram_dry_run ? 'ACTIVE' : 'OFF';
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // =========================================================================
+    // Stage 9: Trends Intelligence
+    // =========================================================================
+
+    async function loadTrends() {
+      try {
+        const res = await fetch('/api/trends');
+        const data = await res.json();
+
+        // 1. Trending Categories / Niche Momentum Cards
+        const catGrid = document.getElementById('category-cards-grid');
+        if (catGrid && data.niche_trends) {
+          catGrid.innerHTML = '';
+          for (const [catName, niche] of Object.entries(data.niche_trends)) {
+            const card = document.createElement('div');
+            card.style.background = 'var(--bg-input)';
+            card.style.border = '1px solid var(--border)';
+            card.style.borderRadius = '10px';
+            card.style.padding = '14px';
+
+            const hashtags = (niche.top_hashtags || []).slice(0, 3).map(h => `#${h}`).join(' ');
+            card.innerHTML = `
+              <div style="font-size:11px; text-transform:uppercase; color:var(--text-muted); font-weight:700;">${catName}</div>
+              <div style="font-size:20px; font-weight:800; color:var(--accent-blue); margin-top:4px;">
+                ${niche.total_reels || niche.reel_count || 0} <span style="font-size:12px; font-weight:500; color:var(--text-dim)">reels</span>
+              </div>
+              <div style="font-size:11.5px; color:var(--text-dim); margin-top:6px;">
+                Momentum: <b style="color:var(--accent-green)">${niche.momentum_score || (niche.momentum ? niche.momentum.toFixed(1) : '85.0')}</b>
+              </div>
+              <div style="font-size:11px; color:var(--accent-yellow); margin-top:4px; word-break:break-all;">
+                ${hashtags || '#Marketing'}
+              </div>
+            `;
+            catGrid.appendChild(card);
+          }
+        }
+
+        // 2. Emerging Topic Clusters
+        const topTbody = document.querySelector('#emerging-topics-table tbody');
+        if (topTbody && data.emerging_topics) {
+          topTbody.innerHTML = '';
+          data.emerging_topics.slice(0, 8).forEach(t => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><b>${t.topic_label || t.topic_key}</b></td>
+              <td><span class="badge badge-approved">${t.category || 'General'}</span></td>
+              <td><span class="badge badge-published">${t.independent_creator_count || 1} creators</span> (${t.reels_count || 1} reels)</td>
+              <td><b style="color:var(--accent-green)">${t.avg_trending_score || '-'}</b></td>
+              <td>${(t.total_views || 0).toLocaleString()}</td>
+              <td><small style="color:var(--text-muted)">${t.explanation || '-'}</small></td>
+              <td>
+                <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="useIdeaInGenerator('${encodeURIComponent(t.topic_label || t.topic_key)}')">
+                  Use Topic
+                </button>
+              </td>
+            `;
+            topTbody.appendChild(tr);
+          });
+        }
+
+        // 3. Discovered Reels
+        const reelsTbody = document.querySelector('#discovered-reels-table tbody');
+        if (reelsTbody && data.trending_reels) {
+          reelsTbody.innerHTML = '';
+          data.trending_reels.slice(0, 15).forEach(r => {
+            const tr = document.createElement('tr');
+            const shortcode = r.shortcode || '';
+            const linkHtml = shortcode
+              ? `<a href="https://instagram.com/p/${shortcode}" target="_blank" style="color:var(--accent-blue); text-decoration:none;">🔗 View</a>`
+              : '-';
+
+            tr.innerHTML = `
+              <td><b>@${r.author_username || 'creator'}</b><br><small style="color:var(--text-dim)">${shortcode}</small></td>
+              <td><span class="badge badge-approved">${r.category || 'Marketing'}</span></td>
+              <td>${(r.views || 0).toLocaleString()}</td>
+              <td>${(r.likes || 0).toLocaleString()} / ${(r.comments || 0).toLocaleString()}</td>
+              <td><b style="color:var(--accent-green)">${r.engagement_score || 0}</b></td>
+              <td>${r.popularity_score || 0}</td>
+              <td><b style="color:var(--accent-yellow)">${r.trending_score || 0}</b></td>
+              <td><small style="color:var(--text-muted)">${r.explanation || 'Solid engagement profile'}</small></td>
+              <td>${linkHtml}</td>
+            `;
+            reelsTbody.appendChild(tr);
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load trends:', err);
+      }
+    }
+
+    async function generateNewIdea() {
+      const cat = document.getElementById('idea-gen-category').value;
+      const btn = document.getElementById('btn-generate-idea');
+      btn.disabled = true;
+      btn.textContent = '⏳ Generating with AI Director...';
+
+      try {
+        const res = await fetch('/api/ideas/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ category: cat })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Idea generation failed');
+
+        showToast(`New Idea Created: "${data.idea.topic}"!`);
+        await loadIdeas();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '⚡ Generate New Ideas with AI Director';
+      }
+    }
+
+    // =========================================================================
+    // Stage 9: Competitor Intelligence
+    // =========================================================================
+
+    async function loadCompetitors() {
+      try {
+        const res = await fetch('/api/competitors');
+        const comps = await res.json();
+        const tbody = document.querySelector('#competitors-table tbody');
+        tbody.innerHTML = '';
+
+        comps.forEach(c => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>
+              <b>@${c.handle}</b><br>
+              <small style="color:var(--text-muted)">${c.display_name || '-'}</small>
+            </td>
+            <td><span class="badge badge-approved">${c.category || 'General'}</span></td>
+            <td><b>${(c.follower_count || 0).toLocaleString()}</b></td>
+            <td>${(c.following_count || 0).toLocaleString()}</td>
+            <td>${c.posts_count || 0}</td>
+            <td><small style="color:var(--text-muted)">${c.notes || c.bio || '-'}</small></td>
+            <td>
+              <button class="btn btn-danger" style="padding:4px 8px; font-size:11px;" onclick="deleteCompetitor('${c.handle}')">
+                🗑️ Remove
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error('Failed to load competitors:', err);
+      }
+    }
+
+    async function handleAddCompetitor(e) {
+      e.preventDefault();
+      const handle = document.getElementById('comp-handle').value.trim();
+      const category = document.getElementById('comp-category').value;
+      const notes = document.getElementById('comp-notes').value.trim();
+      const btn = document.getElementById('btn-add-comp');
+
+      btn.disabled = true;
+      btn.textContent = '⏳ Adding & Syncing...';
+
+      try {
+        const res = await fetch('/api/competitors', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handle, category, notes })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Failed to add competitor');
+
+        showToast(`Competitor @${handle} tracked successfully!`);
+        document.getElementById('comp-handle').value = '';
+        document.getElementById('comp-notes').value = '';
+        await loadCompetitors();
+        await loadCompetitorComparison();
+        loadOverview();
+      } catch (err) {
+        showToast(err.message, 'error');
+      } finally {
+        btn.disabled = false;
+        btn.textContent = '➕ Track & Sync Competitor';
+      }
+    }
+
+    async function deleteCompetitor(handle) {
+      if (!confirm(`Are you sure you want to stop tracking @${handle}?`)) return;
+
+      try {
+        const res = await fetch(`/api/competitors/${encodeURIComponent(handle)}`, {
+          method: 'DELETE'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Delete failed');
+
+        showToast(`Removed @${handle}`);
+        await loadCompetitors();
+        await loadCompetitorComparison();
+        loadOverview();
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function loadCompetitorComparison() {
+      try {
+        const res = await fetch('/api/competitors/comparison');
+        const comp = await res.json();
+        const container = document.getElementById('comparison-container');
+        if (!container) return;
+        container.innerHTML = '';
+
+        // Card 1: Reach & Follower Rankings
+        const reachCard = document.createElement('div');
+        reachCard.style.background = 'var(--bg-input)';
+        reachCard.style.border = '1px solid var(--border)';
+        reachCard.style.borderRadius = '10px';
+        reachCard.style.padding = '16px';
+        const reachList = (comp.rankings_by_reach || []).map((h, i) => `<li><b>#${i+1}</b> @${h}</li>`).join('') || '<li>No data</li>';
+        reachCard.innerHTML = `
+          <h4 style="font-size:14px; margin-bottom:8px; color:var(--accent-blue);">🏆 Audience Reach Rankings</h4>
+          <ol style="padding-left:18px; font-size:13px; line-height:1.8;">${reachList}</ol>
+        `;
+        container.appendChild(reachCard);
+
+        // Card 2: Engagement Rankings
+        const engCard = document.createElement('div');
+        engCard.style.background = 'var(--bg-input)';
+        engCard.style.border = '1px solid var(--border)';
+        engCard.style.borderRadius = '10px';
+        engCard.style.padding = '16px';
+        const engList = (comp.rankings_by_engagement || []).map((h, i) => `<li><b>#${i+1}</b> @${h}</li>`).join('') || '<li>No data</li>';
+        engCard.innerHTML = `
+          <h4 style="font-size:14px; margin-bottom:8px; color:var(--accent-green);">⚡ Engagement Rate Rankings</h4>
+          <ol style="padding-left:18px; font-size:13px; line-height:1.8;">${engList}</ol>
+        `;
+        container.appendChild(engCard);
+
+        // Card 3: Popularity & Publishing Volume
+        const popCard = document.createElement('div');
+        popCard.style.background = 'var(--bg-input)';
+        popCard.style.border = '1px solid var(--border)';
+        popCard.style.borderRadius = '10px';
+        popCard.style.padding = '16px';
+        const popList = (comp.rankings_by_popularity || []).map((h, i) => `<li><b>#${i+1}</b> @${h}</li>`).join('') || '<li>No data</li>';
+        popCard.innerHTML = `
+          <h4 style="font-size:14px; margin-bottom:8px; color:var(--accent-yellow);">🔥 Content Popularity Score</h4>
+          <ol style="padding-left:18px; font-size:13px; line-height:1.8;">${popList}</ol>
+        `;
+        container.appendChild(popCard);
+      } catch (err) {
+        console.error('Failed to load competitor comparison:', err);
+      }
+    }
+
+    // =========================================================================
+    // Stage 9: Content & Hook Intelligence
+    // =========================================================================
+
+    async function loadInsights() {
+      try {
+        const res = await fetch('/api/insights');
+        cachedInsights = await res.json();
+
+        // 1. Best Performing Hooks
+        const hookTbody = document.querySelector('#best-hooks-table tbody');
+        if (hookTbody && cachedInsights.best_performing_hooks) {
+          hookTbody.innerHTML = '';
+          cachedInsights.best_performing_hooks.forEach(h => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><b>${h.category || '-'}</b></td>
+              <td><b style="color:var(--accent-green)">${h.avg_engagement_score || 0}</b></td>
+              <td><span class="badge badge-approved">${h.sample_count || 1} sample(s)</span></td>
+            `;
+            hookTbody.appendChild(tr);
+          });
+        }
+
+        // 2. Video Formats & CTAs
+        const fmtTbody = document.querySelector('#formats-table tbody');
+        if (fmtTbody) {
+          fmtTbody.innerHTML = '';
+          const formats = cachedInsights.best_performing_formats || [
+            { format: 'Tutorial / Screen Recording', signal: 'High retention & software demo validation' },
+            { format: 'Step-by-Step Survival Guide', signal: 'Optimal completion on stick-story animations' },
+            { format: 'Direct Questioning Explainer', signal: 'High comment velocity for lead magnets' }
+          ];
+          formats.forEach(f => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td><b>${f.format || f.category || 'Standard Vertical Short'}</b></td>
+              <td><span class="badge badge-published">Top Quartile</span></td>
+              <td><small style="color:var(--text-muted)">${f.signal || 'Strong engagement velocity'}</small></td>
+            `;
+            fmtTbody.appendChild(tr);
+          });
+        }
+
+        // 3. Render Niche Blueprint
+        renderActiveBlueprint();
+      } catch (err) {
+        console.error('Failed to load insights:', err);
+      }
+    }
+
+    function renderActiveBlueprint() {
+      if (!cachedInsights || !cachedInsights.niche_blueprints) return;
+      const selCat = document.getElementById('niche-blueprint-select').value;
+      const bp = cachedInsights.niche_blueprints[selCat];
+      const box = document.getElementById('blueprint-content-box');
+      if (!box) return;
+
+      if (!bp) {
+        box.innerHTML = `<div style="color:var(--text-muted)">No blueprint found for ${selCat}</div>`;
+        return;
+      }
+
+      const hooks = bp.recommended_hook_categories || ['Contrarian / Myth-Busting', 'Problem-Solution'];
+      const formats = bp.recommended_formats || ['Animation', 'Screen Recording'];
+      const templates = bp.sample_original_hook_templates || [
+        "Why businesses get Instagram views but struggle to convert buyers.",
+        "The single targeting mistake doubling your cost per acquisition."
+      ];
+
+      const templatesHtml = templates.map(t => `
+        <div style="display:flex; justify-content:space-between; align-items:center; background:var(--bg-card); padding:10px 14px; border-radius:8px; margin-bottom:8px; border:1px solid var(--border);">
+          <div style="font-size:13px; font-style:italic;">"${t}"</div>
+          <button class="btn btn-outline" style="padding:4px 10px; font-size:11px; white-space:nowrap;" onclick="useHookInGenerator('${encodeURIComponent(t)}')">
+            ⚡ Use in Generator
+          </button>
+        </div>
+      `).join('');
+
+      box.innerHTML = `
+        <div style="margin-bottom:14px;">
+          <b style="color:var(--accent-blue)">Strategic Rationale:</b>
+          <p style="font-size:13px; color:var(--text-muted); margin-top:4px;">${bp.strategic_rationale || 'High-conversion blueprint optimized for Instagram audiences.'}</p>
+        </div>
+        <div class="form-row" style="margin-bottom:16px;">
+          <div>
+            <b style="font-size:12px; color:var(--text-dim); text-transform:uppercase;">Recommended Structure</b>
+            <div style="font-size:13px; margin-top:4px;"><code>${bp.recommended_structure || 'Hook -> Problem -> Proof -> CTA'}</code></div>
+          </div>
+          <div>
+            <b style="font-size:12px; color:var(--text-dim); text-transform:uppercase;">CTA Strategy</b>
+            <div style="font-size:13px; margin-top:4px; color:var(--accent-green);">${bp.recommended_cta_strategy || 'Comment a keyword for free checklist'}</div>
+          </div>
+        </div>
+        <div>
+          <b style="font-size:12px; color:var(--text-dim); text-transform:uppercase; margin-bottom:8px; display:block;">Sample High-Performing Hook Templates</b>
+          ${templatesHtml}
+        </div>
+      `;
+    }
+
+    function useHookInGenerator(hookEnc) {
+      const hookText = decodeURIComponent(hookEnc);
+      document.getElementById('gen-topic').value = hookText;
+      switchTab('generator');
+    }
+
+    async function loadIdeas() {
+      try {
+        const res = await fetch('/api/ideas');
+        const ideas = await res.json();
+        const tbody = document.querySelector('#ideas-table tbody');
+        tbody.innerHTML = '';
+        ideas.forEach(i => {
+          const tr = document.createElement('tr');
+          const hook = Array.isArray(i.hooks) && i.hooks.length ? i.hooks[0] : (i.hooks || '');
+          tr.innerHTML = `
+            <td><b style="color:var(--accent-green)">${i.opportunity_score}</b></td>
+            <td><span class="badge badge-approved">${i.target_category}</span></td>
+            <td><b>${i.topic}</b><br><small style="color:var(--text-dim)">${i.business_problem || ''}</small></td>
+            <td><code>${i.faceless_short_style}</code></td>
+            <td><i>"${hook}"</i></td>
+            <td>
+              <button class="btn btn-outline" style="padding:4px 8px; font-size:11px;" onclick="useIdeaInGenerator('${encodeURIComponent(i.topic)}')">
+                Use Topic
+              </button>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function useIdeaInGenerator(topicEnc) {
+      const topic = decodeURIComponent(topicEnc);
+      document.getElementById('gen-topic').value = topic;
+      switchTab('generator');
+    }
+
+    function goToApproval() {
+      switchTab('approval');
+      if (latestGeneratedVideo) {
+        document.getElementById('preview-selector').value = latestGeneratedVideo.video_id;
+        loadVideoDetails(latestGeneratedVideo.video_id);
+      }
+    }
+
+    function goToHistory() {
+      switchTab('history');
+    }
+
+    async function handleCreateVideo(e) {
+      e.preventDefault();
+      const topic = document.getElementById('gen-topic').value;
+      const style = document.getElementById('gen-style').value;
+      const voice = document.getElementById('gen-voice').value;
+      const music = document.getElementById('gen-music').value;
+
+      const btn = document.getElementById('btn-generate-video');
+      const spinner = document.getElementById('gen-spinner');
+      const errBox = document.getElementById('gen-error-box');
+      const resCard = document.getElementById('gen-result-card');
+
+      btn.disabled = true;
+      spinner.style.display = 'inline';
+      errBox.style.display = 'none';
+
+      // Live progress steps indicator
+      let progressStep = 0;
+      const progressSteps = [
+        '⏳ Step 1/4: Analyzing topic & generating CreativeBrief...',
+        '🎙️ Step 2/4: Synthesizing Kokoro voice & Whisper word timing...',
+        '🎬 Step 3/4: Capturing 1080x1920 frames in Chrome WebGL & mixing audio...',
+        '📦 Step 4/4: Multiplexing MP4 container & saving to database...'
+      ];
+      spinner.textContent = progressSteps[0];
+      const progressInterval = setInterval(() => {
+        progressStep++;
+        if (progressStep < progressSteps.length) {
+          spinner.textContent = progressSteps[progressStep];
+        }
+      }, 15000);
+
+      try {
+        const res = await fetch('/api/videos/create', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ topic, style, voice, music })
+        });
+        clearInterval(progressInterval);
+        let data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Generation failed');
+
+        // Cloud Worker async polling support (Stage 10.4)
+        if (data.status === 'enqueued' && data.poll_url) {
+          spinner.textContent = '☁️ Cloud Rendering Worker active: rendering in container...';
+          const maxAttempts = 60;
+          let attempts = 0;
+          while (attempts < maxAttempts) {
+            await new Promise(r => setTimeout(r, 4000));
+            attempts++;
+            const pollRes = await fetch(data.poll_url);
+            if (pollRes.ok) {
+              const jobData = await pollRes.json();
+              if (jobData.status === 'COMPLETED') {
+                data = {
+                  status: 'success',
+                  video: jobData.video || {
+                    slug: jobData.job_id,
+                    video_name: `${jobData.job_id}.mp4`,
+                    title: jobData.topic,
+                    video_path: jobData.video_url,
+                  },
+                  url: jobData.video_url || jobData.storage_url,
+                  caption: `Marketing concept for: ${jobData.topic}`,
+                  hashtags: ['InstagramMarketing', 'AdSyncCloud']
+                };
+                break;
+              } else if (jobData.status === 'FAILED') {
+                throw new Error(jobData.error_message || 'Cloud render failed');
+              } else {
+                spinner.textContent = `☁️ Cloud Worker status: ${jobData.status} (${attempts * 4}s)...`;
+              }
+            }
+          }
+        }
+
+        const vid = data.video;
+        latestGeneratedVideo = {
+          video_id: vid.slug,
+          video_name: vid.video_name,
+          url: data.url || `/videos/${vid.video_name}`,
+          title: vid.title,
+          caption: data.caption || '',
+          hashtags: data.hashtags || []
+        };
+
+        // Render preview inside Generator tab
+        document.getElementById('gen-result-title').value = vid.title;
+        document.getElementById('gen-result-path').textContent = vid.video_path;
+        document.getElementById('gen-result-script').textContent = vid.script_path || `${vid.project_dir}/script.json`;
+        document.getElementById('gen-result-brief').textContent = vid.brief_path || `${vid.project_dir}/creative_brief.json`;
+        document.getElementById('gen-result-caption').value = data.caption || '';
+        
+        const genPlayer = document.getElementById('gen-result-player');
+        genPlayer.src = data.url || `/videos/${vid.video_name}`;
+        genPlayer.load();
+
+        resCard.style.display = 'block';
+        showToast('Video generated successfully! Displaying preview.');
+
+        // Refresh library in background
+        loadVideos();
+        loadHistory();
+      } catch (err) {
+        errBox.textContent = `Error during generation: ${err.message}`;
+        errBox.style.display = 'block';
+        showToast(err.message, 'error');
+      } finally {
+        clearInterval(progressInterval);
+        btn.disabled = false;
+        spinner.style.display = 'none';
+      }
+    }
+
+    async function loadVideos() {
+      try {
+        const res = await fetch('/api/videos');
+        currentVideos = await res.json();
+        const sel = document.getElementById('preview-selector');
+        sel.innerHTML = '';
+        if (currentVideos.length === 0) {
+          sel.innerHTML = '<option value="">No videos found</option>';
+          return;
+        }
+        currentVideos.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v.video_id;
+          opt.textContent = `${v.approved ? '✅' : '⏳'} ${v.title} (${v.video_name})`;
+          sel.appendChild(opt);
+        });
+        loadVideoDetails(currentVideos[0].video_id);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function loadVideoDetails(vidId) {
+      selectedVideo = currentVideos.find(v => v.video_id === vidId);
+      if (!selectedVideo) return;
+
+      const player = document.getElementById('preview-player');
+      player.src = selectedVideo.url;
+      player.load();
+
+      document.getElementById('edit-title').value = selectedVideo.title || '';
+      document.getElementById('edit-caption').value = selectedVideo.caption || '';
+      document.getElementById('edit-hashtags').value = (selectedVideo.hashtags || []).join(' ');
+
+      updateApprovalUI(selectedVideo.approved);
+    }
+
+    function updateApprovalUI(isApproved) {
+      const btn = document.getElementById('btn-approve-toggle');
+      const badge = document.getElementById('approval-status-badge');
+      if (isApproved) {
+        btn.textContent = '❌ Revoke Approval';
+        btn.className = 'btn btn-danger';
+        badge.textContent = 'Status: Approved';
+        badge.className = 'badge badge-approved';
+      } else {
+        btn.textContent = '✅ Approve Video';
+        btn.className = 'btn btn-success';
+        badge.textContent = 'Status: Unapproved (Publish Locked)';
+        badge.className = 'badge badge-pending';
+      }
+    }
+
+    async function saveVideoEdits() {
+      if (!selectedVideo) return;
+      const title = document.getElementById('edit-title').value;
+      const caption = document.getElementById('edit-caption').value;
+      const hashtags = document.getElementById('edit-hashtags').value.split(' ').filter(Boolean);
+
+      try {
+        const res = await fetch(`/api/videos/${selectedVideo.video_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, caption, hashtags })
+        });
+        if (res.ok) {
+          showToast('Saved video changes!');
+          selectedVideo.title = title;
+          selectedVideo.caption = caption;
+          selectedVideo.hashtags = hashtags;
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function toggleApproval() {
+      if (!selectedVideo) return;
+      const newStatus = !selectedVideo.approved;
+      try {
+        const res = await fetch(`/api/videos/${selectedVideo.video_id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ approved: newStatus })
+        });
+        if (res.ok) {
+          selectedVideo.approved = newStatus ? 1 : 0;
+          updateApprovalUI(newStatus);
+          showToast(newStatus ? 'Video Approved! Publishing unlocked.' : 'Approval Revoked.');
+        }
+      } catch (e) {
+        showToast(e.message, 'error');
+      }
+    }
+
+    async function loadPublishVideos() {
+      try {
+        const res = await fetch('/api/videos');
+        const vids = await res.json();
+        const sel = document.getElementById('publish-video-select');
+        sel.innerHTML = '';
+        vids.forEach(v => {
+          const opt = document.createElement('option');
+          opt.value = v.video_id;
+          opt.textContent = `${v.approved ? '✅ [APPROVED]' : '🔒 [LOCKED]'} ${v.title}`;
+          sel.appendChild(opt);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function executePublishInstagram() {
+      const vidId = document.getElementById('publish-video-select').value;
+      const mode = document.getElementById('pub-ig-mode').value;
+      if (!vidId) return showToast('Please select a video', 'error');
+
+      try {
+        const res = await fetch('/api/publish/instagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            video_id: vidId,
+            dry_run: mode === 'dry_run'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Publishing failed');
+
+        if (data.status === 'PUBLISHED') {
+          showToast(`SUCCESS! Live Reel published: ${data.permalink}`);
+        } else {
+          showToast(`Dry Run Verified: ${data.permalink || data.status}`);
+        }
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function executePublishYouTube() {
+      const vidId = document.getElementById('publish-video-select').value;
+      const mode = document.getElementById('pub-yt-mode').value;
+      if (!vidId) return showToast('Please select a video', 'error');
+
+      try {
+        const res = await fetch('/api/publish/youtube', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            video_id: vidId,
+            dry_run: mode === 'dry_run'
+          })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'YouTube upload failed');
+
+        showToast(`${data.status}: ${data.permalink}`);
+      } catch (err) {
+        showToast(err.message, 'error');
+      }
+    }
+
+    async function loadHistory() {
+      try {
+        // 1. Load generated video catalog links
+        const vRes = await fetch('/api/videos');
+        const vids = await vRes.json();
+        const vTbody = document.querySelector('#generated-videos-table tbody');
+        if (vTbody) {
+          vTbody.innerHTML = '';
+          vids.forEach(v => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+              <td>${v.created_at || '-'}</td>
+              <td><b>${v.title}</b><br><small style="color:var(--text-dim)">${v.video_id}</small></td>
+              <td><code>${v.style}</code></td>
+              <td><small style="color:var(--accent-blue); word-break:break-all;">${v.file_path}</small></td>
+              <td>${v.approved ? '<span class="badge badge-approved">Approved</span>' : '<span class="badge badge-pending">Unapproved</span>'}</td>
+              <td>
+                <a href="${v.url}" target="_blank" class="btn btn-outline" style="padding:4px 8px; font-size:11px; text-decoration:none;">▶️ Play MP4</a>
+              </td>
+            `;
+            vTbody.appendChild(tr);
+          });
+        }
+
+        // 2. Load publication audit history
+        const res = await fetch('/api/publications');
+        const pubs = await res.json();
+        const tbody = document.querySelector('#history-table tbody');
+        tbody.innerHTML = '';
+        pubs.forEach(p => {
+          const tr = document.createElement('tr');
+          const isDry = p.is_dry_run === 1;
+          const statusBadge = p.status === 'PUBLISHED'
+            ? `<span class="badge badge-published">PUBLISHED</span>`
+            : `<span class="badge badge-dryrun">${p.status}</span>`;
+          const permalinkHtml = p.permalink
+            ? `<a href="${p.permalink}" target="_blank" style="color:var(--accent-blue)">${p.permalink}</a>`
+            : '-';
+          
+          tr.innerHTML = `
+            <td>${p.created_at || '-'}</td>
+            <td><code>${p.publication_id}</code></td>
+            <td>${statusBadge}</td>
+            <td>${isDry ? 'Simulated' : 'LIVE'}</td>
+            <td><code>${p.post_id || '-'}</code></td>
+            <td>${permalinkHtml}</td>
+            <td style="color:var(--accent-red)">${p.error_message || '-'}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    // Initial boot
+    loadOverview();
+  </script>
+</body>
+</html>

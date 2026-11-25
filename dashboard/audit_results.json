@@ -1,0 +1,64 @@
+{
+  "PASS": [
+    [
+      "1. Startup & Module Imports",
+      "FastAPI backend, Publisher modules, Supabase uploader, and YouTube client imported cleanly with zero syntax or dependency errors."
+    ],
+    [
+      "3. Dashboard UI & Frontend Pages",
+      "Modern dark-themed index.html loaded: includes all 6 tabs (Overview, Trends, Generator, Preview/Approval, Publisher, History) with full JavaScript button bindings."
+    ],
+    [
+      "5. Trend Discovery & Content Ideas API (/api/ideas)",
+      "Successfully returned ranked concepts from database (Top score: 97.7 for 'Lifestyle Narrative Walkthroughs for Luxury Real Estate Listings')."
+    ],
+    [
+      "6. Video Catalog & Library API (/api/videos)",
+      "Synced 9 video(s). Rendered file verified on disk: a-video-of-explaining-why-some-g-04f55d.mp4 (4545596 bytes)."
+    ],
+    [
+      "7. Manual Approval Workflow Protection",
+      "Strictly blocks unapproved videos with HTTP 403. Both Instagram and YouTube APIs enforce approval lockouts before any publishing is allowed."
+    ],
+    [
+      "9. Instagram Reels Publisher (Dry-Run Guarded)",
+      "Dry-run executed safely. Generated simulated container (mock_container_1fdf95c13c) and post (mock_post_83b76874b5); zero network calls made to Instagram Graph API."
+    ],
+    [
+      "10. YouTube Shorts Integration (Safe Testing Mode)",
+      "YouTube Data API v3 publisher validated in dry-run mode. Generates simulated Shorts permalink (https://www.youtube.com/shorts/yt_fc236b5b72e) and logs to SQLite."
+    ],
+    [
+      "12. Publisher Regression Tests",
+      "All 8 automated unit tests passed in publisher/test_publisher.py."
+    ],
+    [
+      "13. Trend Engine Regression Tests",
+      "All 22 automated unit tests passed in trend_engine/tests/test_trend_engine.py."
+    ]
+  ],
+  "FAIL": [
+    [
+      "2. SQLite Database Schema & Data Integrity",
+      "Expected 20 ideas, found 24"
+    ],
+    [
+      "4. Overview & Statistics API (/api/overview)",
+      ""
+    ],
+    [
+      "8. Supabase Storage & Video CDN",
+      "Public URL not reachable: https://byctnlhugfvjxumkrmag.supabase.co/storage/v1/object/public/adsync-reels/why_businesses_get_views_no_customers.mp4"
+    ],
+    [
+      "11. Publication Audit Ledger (/api/publications)",
+      "Missing live record"
+    ]
+  ],
+  "NOT_CONFIGURED": [
+    [
+      "YouTube OAuth Access Token (YOUTUBE_ACCESS_TOKEN)",
+      "YOUTUBE_ACCESS_TOKEN is not set in root .env. Live YouTube publishing is disabled. Safe dry-run testing mode is fully operational."
+    ]
+  ]
+}

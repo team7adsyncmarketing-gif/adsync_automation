@@ -1,0 +1,62 @@
+# =====================================================================
+# Render Blueprint Specification for AdSync Control Center
+# =====================================================================
+version: "1"
+
+services:
+  # 1. FastAPI Dashboard & Control Center Backend
+  - type: web
+    name: adsync-control-center
+    env: python
+    region: oregon
+    plan: starter
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn dashboard.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: ENVIRONMENT
+        value: production
+      - key: FORCE_MOCK_MODE
+        value: "1"
+      - key: INSTAGRAM_DRY_RUN
+        value: "1"
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: adsync-reels
+      - key: DATABASE_URL
+        sync: false
+      - key: WORKER_MODE
+        value: cloud
+      - key: RENDER_WORKER_URL
+        fromService:
+          type: web
+          name: adsync-render-worker
+          property: host
+
+  # 2. Cloud Video Rendering Worker (Faceless Shorts Pipeline)
+  - type: web
+    name: adsync-render-worker
+    env: docker
+    dockerfilePath: ./worker/Dockerfile
+    dockerContext: .
+    region: oregon
+    plan: standard
+    healthCheckPath: /healthz
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: SUPABASE_BUCKET
+        value: adsync-reels
+      - key: DATABASE_URL
+        sync: false
+      - key: RENDER_WORKER_API_KEY
+        generateValue: true
