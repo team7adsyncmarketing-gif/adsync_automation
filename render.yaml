@@ -1,15 +1,15 @@
 # =====================================================================
-# Render Blueprint Specification for AdSync Control Center
+# Render Blueprint Specification for AdSync Control Center (100% FREE TIER)
 # =====================================================================
 version: "1"
 
 services:
-  # 1. FastAPI Dashboard & Control Center Backend
+  # FastAPI Dashboard & Control Center Backend (Free Instance: $0/month)
   - type: web
     name: adsync-control-center
     env: python
     region: oregon
-    plan: starter
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn dashboard.server:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /healthz
@@ -31,32 +31,4 @@ services:
       - key: DATABASE_URL
         sync: false
       - key: WORKER_MODE
-        value: cloud
-      - key: RENDER_WORKER_URL
-        fromService:
-          type: web
-          name: adsync-render-worker
-          property: host
-
-  # 2. Cloud Video Rendering Worker (Faceless Shorts Pipeline)
-  - type: web
-    name: adsync-render-worker
-    env: docker
-    dockerfilePath: ./worker/Dockerfile
-    dockerContext: .
-    region: oregon
-    plan: standard
-    healthCheckPath: /healthz
-    envVars:
-      - key: ENVIRONMENT
-        value: production
-      - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_KEY
-        sync: false
-      - key: SUPABASE_BUCKET
-        value: adsync-reels
-      - key: DATABASE_URL
-        sync: false
-      - key: RENDER_WORKER_API_KEY
-        generateValue: true
+        value: local
