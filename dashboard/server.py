@@ -8,13 +8,20 @@ import uuid
 from pathlib import Path
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
-from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Header, Depends
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
+
+def verify_security(x_api_key: Optional[str] = Header(None, alias="X-API-Key")):
+    """Security guard verifying API key in production when ADSYNC_API_KEY is configured."""
+    expected = os.environ.get("ADSYNC_API_KEY")
+    if expected and x_api_key != expected:
+        raise HTTPException(status_code=401, detail="Unauthorized: Invalid X-API-Key header.")
+    return True
 
 from publisher.config import PublisherConfig
 from publisher.manager import ReelPublishManager
@@ -61,6 +68,8 @@ def get_db():
     return conn
 
 
+from dashboard.scheduler import AdSyncScheduler
+
 # Initialize DatabaseRepository and Intelligence Engines
 repo = DatabaseRepository(DB_PATH)
 config = get_config()
@@ -71,6 +80,11 @@ trending_engine = TrendingDetectionEngine()
 competitor_engine = CompetitorIntelligenceEngine(db_repo=repo, client=mock_client)
 hook_engine = HookFormatIntelligenceEngine()
 creative_director = AICreativeDirector(output_dir=PROJECT_ROOT / "output" / "shorts_projects")
+
+# Initialize and start autonomous scheduler (Stage 10.6)
+publisher_cfg = PublisherConfig.from_env()
+scheduler = AdSyncScheduler(repo, trending_engine, competitor_engine, publisher_cfg)
+scheduler.start()
 
 
 def seed_competitors_if_empty():
@@ -559,6 +573,26 @@ def create_video_api(req: CreateVideoRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@app.get("/api/jobs")
+def list_jobs_api():
+    """List recent rendering jobs across local and cloud environments."""
+    cloud_worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
+    if cloud_worker_url and not cloud_worker_url.startswith("none"):
+        try:
+            import urllib.request
+            req = urllib.request.Request(f"{cloud_worker_url}/jobs")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return json.loads(resp.read().decode())
+        except Exception:
+            pass
+
+    # Return local catalog items
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT video_id as job_id, 'COMPLETED' as status, topic, style, file_path as video_url, created_at FROM video_catalog ORDER BY created_at DESC LIMIT 20")
+        return [dict(r) for r in c.fetchall()]
+
+
 @app.get("/api/jobs/{job_id}")
 def check_job_status_api(job_id: str):
     """Poll cloud rendering worker job status."""
@@ -573,6 +607,46 @@ def check_job_status_api(job_id: str):
             return {"job_id": job_id, "status": "UNKNOWN", "error": str(e)}
 
     return {"job_id": job_id, "status": "COMPLETED_LOCAL"}
+
+
+@app.post("/api/jobs/{job_id}/retry")
+def retry_job_api(job_id: str):
+    """Retries a failed rendering job (Stage 10.5)."""
+    cloud_worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
+    if cloud_worker_url and not cloud_worker_url.startswith("none"):
+        try:
+            import urllib.request
+            req = urllib.request.Request(f"{cloud_worker_url}/jobs/{job_id}/retry", method="POST")
+            with urllib.request.urlopen(req, timeout=5) as resp:
+                return json.loads(resp.read().decode())
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"Failed to retry cloud job: {e}")
+
+    return {"status": "re-queued", "job_id": job_id, "mode": "local"}
+
+
+# =====================================================================
+# Autonomous Scheduler Endpoints (Stage 10.6)
+# =====================================================================
+
+@app.get("/api/scheduler/status")
+def get_scheduler_status():
+    """Returns background automated jobs status and last run timestamps."""
+    return scheduler.get_status()
+
+
+@app.post("/api/scheduler/trigger/{job_name}")
+def trigger_scheduled_job(job_name: str):
+    """Manually triggers a scheduled background job."""
+    if job_name == "competitors":
+        res = scheduler.sync_competitors_job()
+    elif job_name == "trends":
+        res = scheduler.refresh_trends_job()
+    elif job_name == "publishing":
+        res = scheduler.check_scheduled_publishing_job()
+    else:
+        raise HTTPException(status_code=400, detail=f"Unknown job: {job_name}. Valid: competitors, trends, publishing")
+    return {"job": job_name, "result": res}
 
 
 class UpdateVideoRequest(BaseModel):
@@ -624,7 +698,7 @@ class PublishInstagramRequest(BaseModel):
 
 
 @app.post("/api/publish/instagram")
-def publish_instagram_api(req: PublishInstagramRequest):
+def publish_instagram_api(req: PublishInstagramRequest, _auth: bool = Depends(verify_security)):
     with get_db() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM video_catalog WHERE video_id = ?", (req.video_id,))
@@ -673,7 +747,7 @@ class PublishYouTubeRequest(BaseModel):
 
 
 @app.post("/api/publish/youtube")
-def publish_youtube_api(req: PublishYouTubeRequest):
+def publish_youtube_api(req: PublishYouTubeRequest, _auth: bool = Depends(verify_security)):
     with get_db() as conn:
         c = conn.cursor()
         c.execute("SELECT * FROM video_catalog WHERE video_id = ?", (req.video_id,))

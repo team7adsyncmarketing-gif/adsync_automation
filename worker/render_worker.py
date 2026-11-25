@@ -138,8 +138,35 @@ def enqueue_render(req: RenderJobRequest, bg_tasks: BackgroundTasks):
     }
 
 
+@app.get("/jobs")
+def list_jobs():
+    """List all registered render jobs and states."""
+    return list(JOBS_STORE.values())
+
+
 @app.get("/status/{job_id}")
 def get_job_status(job_id: str):
     if job_id not in JOBS_STORE:
         raise HTTPException(status_code=404, detail="Job not found")
     return JOBS_STORE[job_id]
+
+
+@app.post("/jobs/{job_id}/retry")
+def retry_job(job_id: str, bg_tasks: BackgroundTasks):
+    """Retries a failed job (Stage 10.5)."""
+    if job_id not in JOBS_STORE:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = JOBS_STORE[job_id]
+    job["status"] = "PENDING"
+    job["error_message"] = None
+    job["updated_at"] = datetime.datetime.utcnow().isoformat()
+    req = RenderJobRequest(
+        job_id=job_id,
+        topic=job["topic"],
+        style=job.get("style", "stick-story"),
+        voice=job.get("voice", "am_puck"),
+        speed=job.get("speed", 1.0),
+        music=job.get("music", "bed")
+    )
+    bg_tasks.add_task(execute_cloud_render, job_id, req)
+    return {"status": "retrying", "job_id": job_id}
