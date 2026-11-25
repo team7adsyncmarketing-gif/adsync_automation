@@ -1,21 +1,11 @@
 # =====================================================================
-# Render Blueprint Specification for AdSync Control Center (100% FREE TIER)
+# Render Blueprint Specification for AdSync Control Center
 # =====================================================================
 version: "1"
 
-services:
-  # FastAPI Dashboard & Control Center Backend (Free Instance: $0/month)
-  - type: web
-    name: adsync-control-center
-    env: python
-    region: oregon
-    plan: free
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn dashboard.server:app --host 0.0.0.0 --port $PORT
-    healthCheckPath: /healthz
+envVarGroups:
+  - name: adsync-shared-env
     envVars:
-      - key: PYTHON_VERSION
-        value: 3.11.9
       - key: ENVIRONMENT
         value: production
       - key: FORCE_MOCK_MODE
@@ -30,5 +20,35 @@ services:
         value: adsync-reels
       - key: DATABASE_URL
         sync: false
+
+services:
+  # 1. Web Service: AdSync Control Center Dashboard & FastAPI Backend
+  - type: web
+    name: adsync-control-center
+    env: python
+    region: singapore
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn dashboard.server:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /healthz
+    envVars:
+      - fromGroup: adsync-shared-env
+      - key: PYTHON_VERSION
+        value: 3.11.9
       - key: WORKER_MODE
-        value: local
+        value: cloud
+      - key: RENDER_WORKER_URL
+        value: http://adsync-render-worker:8000
+
+  # 2. Background Worker: AdSync Cloud Video Rendering Worker
+  - type: worker
+    name: adsync-render-worker
+    env: docker
+    dockerfilePath: ./worker/Dockerfile
+    dockerContext: .
+    region: singapore
+    plan: starter
+    envVars:
+      - fromGroup: adsync-shared-env
+      - key: PORT
+        value: "8000"
