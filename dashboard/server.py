@@ -463,13 +463,22 @@ class CreateVideoRequest(BaseModel):
     music: str = "bed"
 
 
+def get_clean_worker_url() -> Optional[str]:
+    url = os.environ.get("RENDER_WORKER_URL", "").strip().rstrip("/")
+    if url and not url.lower().startswith("none"):
+        if not url.startswith("http://") and not url.startswith("https://"):
+            url = f"http://{url}"
+        return url
+    return None
+
+
 @app.post("/api/videos/create")
 def create_video_api(req: CreateVideoRequest):
     # Check if Cloud Worker is enabled and configured (10.4)
     worker_mode = os.environ.get("WORKER_MODE", "local").lower()
-    cloud_worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
+    cloud_worker_url = get_clean_worker_url()
 
-    if worker_mode == "cloud" and cloud_worker_url and not cloud_worker_url.startswith("none"):
+    if worker_mode == "cloud" and cloud_worker_url:
         try:
             import urllib.request
             worker_endpoint = f"{cloud_worker_url}/render"
@@ -576,8 +585,8 @@ def create_video_api(req: CreateVideoRequest):
 @app.get("/api/jobs")
 def list_jobs_api():
     """List recent rendering jobs across local and cloud environments."""
-    cloud_worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
-    if cloud_worker_url and not cloud_worker_url.startswith("none"):
+    cloud_worker_url = get_clean_worker_url()
+    if cloud_worker_url:
         try:
             import urllib.request
             req = urllib.request.Request(f"{cloud_worker_url}/jobs")
@@ -596,8 +605,8 @@ def list_jobs_api():
 @app.get("/api/jobs/{job_id}")
 def check_job_status_api(job_id: str):
     """Poll cloud rendering worker job status."""
-    cloud_worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
-    if cloud_worker_url and not cloud_worker_url.startswith("none"):
+    cloud_worker_url = get_clean_worker_url()
+    if cloud_worker_url:
         try:
             import urllib.request
             req = urllib.request.Request(f"{cloud_worker_url}/status/{job_id}")
@@ -612,8 +621,8 @@ def check_job_status_api(job_id: str):
 @app.post("/api/jobs/{job_id}/retry")
 def retry_job_api(job_id: str):
     """Retries a failed rendering job (Stage 10.5)."""
-    cloud_worker_url = os.environ.get("RENDER_WORKER_URL", "").rstrip("/")
-    if cloud_worker_url and not cloud_worker_url.startswith("none"):
+    cloud_worker_url = get_clean_worker_url()
+    if cloud_worker_url:
         try:
             import urllib.request
             req = urllib.request.Request(f"{cloud_worker_url}/jobs/{job_id}/retry", method="POST")

@@ -1,5 +1,5 @@
 # =====================================================================
-# Render Blueprint Specification for AdSync Control Center
+# Render Blueprint Specification for AdSync Control Center (100% Free Tier)
 # =====================================================================
 version: "1"
 
@@ -38,17 +38,19 @@ services:
       - key: WORKER_MODE
         value: cloud
       - key: RENDER_WORKER_URL
-        value: http://adsync-render-worker:8000
+        fromService:
+          type: web
+          name: adsync-render-worker
+          property: host
 
-  # 2. Background Worker: AdSync Cloud Video Rendering Worker
-  - type: worker
+  # 2. Web Service: AdSync Cloud Video Rendering Worker
+  - type: web
     name: adsync-render-worker
     env: docker
     dockerfilePath: ./worker/Dockerfile
     dockerContext: .
     region: singapore
-    plan: starter
+    plan: free
+    healthCheckPath: /healthz
     envVars:
       - fromGroup: adsync-shared-env
-      - key: PORT
-        value: "8000"
