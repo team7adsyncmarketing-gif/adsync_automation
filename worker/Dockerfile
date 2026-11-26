@@ -39,7 +39,8 @@ COPY requirements.txt .
 
 # Install Python requirements
 RUN pip install --no-cache-dir -r requirements.txt \
-    && pip install --no-cache-dir soundfile scipy torch torchvision --index-url https://download.pytorch.org/whl/cpu
+    && pip install --no-cache-dir soundfile scipy \
+    && pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
 # Copy application source
 COPY . .
