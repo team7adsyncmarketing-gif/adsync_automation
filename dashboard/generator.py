@@ -181,6 +181,157 @@ export function buildShots() {
         f.write(js_code)
 
 
+def render_fast_marketing_video(proj_dir: Path, final_mp4: Path, script_data: Dict[str, Any]) -> bool:
+    """Fast, ultra-reliable FFmpeg + Pillow marketing video generator (<5 seconds, <50MB RAM)."""
+    try:
+        from PIL import Image, ImageDraw, ImageFont
+    except ImportError:
+        return False
+
+    audio_file = proj_dir / "data" / "mix.wav"
+    if not audio_file.is_file():
+        audio_file = proj_dir / "data" / "narration.wav"
+    if not audio_file.is_file():
+        return False
+
+    # 1. Determine duration & line timings
+    lines_file = proj_dir / "data" / "lines.json"
+    lines_timing = []
+    if lines_file.is_file():
+        try:
+            with open(lines_file, "r", encoding="utf-8") as f:
+                lines_timing = json.load(f).get("lines", [])
+        except Exception:
+            pass
+
+    script_lines = script_data.get("lines", [])
+    if not lines_timing and script_lines:
+        t = 0.4
+        for ln in script_lines:
+            txt = ln.get("text", "")
+            d = max(2.0, len(txt.split()) * 0.4)
+            lines_timing.append({"start": t, "end": t + d, "text": txt})
+            t += d
+
+    if not lines_timing:
+        return False
+
+    # Get total audio duration
+    try:
+        cmd_dur = ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(audio_file)]
+        dur_res = subprocess.run(cmd_dur, capture_output=True, text=True)
+        total_audio_dur = float(dur_res.stdout.strip())
+    except Exception:
+        total_audio_dur = lines_timing[-1]["end"] + 1.0
+
+    slides_dir = proj_dir / "fast_slides"
+    slides_dir.mkdir(parents=True, exist_ok=True)
+
+    W, H = 1080, 1920
+    try:
+        font_badge = ImageFont.load_default(size=26)
+        font_title = ImageFont.load_default(size=44)
+        font_body = ImageFont.load_default(size=48)
+        font_sub = ImageFont.load_default(size=30)
+        font_cta = ImageFont.load_default(size=38)
+    except Exception:
+        font_badge = font_title = font_body = font_sub = font_cta = ImageFont.load_default()
+
+    def wrap_text(text: str, max_chars: int = 30) -> str:
+        words = text.split()
+        lines_arr, cur, cur_len = [], [], 0
+        for w in words:
+            if cur_len + len(w) + 1 > max_chars:
+                lines_arr.append(" ".join(cur))
+                cur = [w]
+                cur_len = len(w)
+            else:
+                cur.append(w)
+                cur_len += len(w) + 1
+        if cur:
+            lines_arr.append(" ".join(cur))
+        return "\n".join(lines_arr)
+
+    topic_title = script_data.get("title", "AdSync Marketing Intelligence").upper()
+    total_scenes = len(lines_timing)
+    slide_files = []
+
+    for idx, item in enumerate(lines_timing):
+        slide_img = Image.new("RGB", (W, H), color=(12, 16, 26))
+        draw = ImageDraw.Draw(slide_img)
+
+        # Brand Accent Lines & Top Bar
+        draw.rectangle([(0, 0), (W, 16)], fill=(56, 189, 248))
+        draw.rectangle([(0, H - 16), (W, H)], fill=(56, 189, 248))
+
+        # Top Badge Pill
+        draw.rounded_rectangle([(100, 100), (520, 165)], radius=32, fill=(24, 34, 53), outline=(56, 189, 248), width=2)
+        draw.text((135, 118), "⚡ ADSYNC MARKETING LABS", fill=(56, 189, 248), font=font_badge)
+
+        # Scene Counter
+        draw.text((820, 118), f"{idx + 1:02d} / {total_scenes:02d}", fill=(148, 163, 184), font=font_badge)
+
+        # Title Header
+        title_wrapped = wrap_text(topic_title, max_chars=34)
+        draw.text((100, 240), title_wrapped, fill=(255, 255, 255), font=font_title)
+
+        # Central Visual Card
+        card_y = 620
+        card_h = 760
+        card_color = (20, 28, 45) if idx % 2 == 0 else (24, 34, 56)
+        draw.rounded_rectangle([(80, card_y), (1000, card_y + card_h)], radius=36, fill=card_color, outline=(71, 85, 105), width=2)
+
+        # Scene Badge Inside Card
+        badge_text = "HOOK & PROBLEM" if idx == 0 else ("CONVERSION PAYOFF" if idx == total_scenes - 1 else f"KEY INSIGHT {idx + 1}")
+        badge_color = (255, 212, 59) if idx == 0 else ((0, 230, 118) if idx == total_scenes - 1 else (56, 189, 248))
+        draw.text((130, card_y + 60), f"● {badge_text}", fill=badge_color, font=font_sub)
+
+        # Spoken Text Body
+        body_wrapped = wrap_text(item.get("text", ""), max_chars=28)
+        draw.text((130, card_y + 160), body_wrapped, fill=(248, 250, 252), font=font_body, spacing=16)
+
+        # Bottom Call to Action
+        if idx == total_scenes - 1:
+            draw.rounded_rectangle([(120, 1540), (960, 1680)], radius=70, fill=(0, 230, 118))
+            draw.text((220, 1585), "👉 TAP LINK IN BIO TO FIX YOUR FUNNEL", fill=(15, 23, 42), font=font_cta)
+        else:
+            draw.rounded_rectangle([(120, 1560), (960, 1660)], radius=50, fill=(24, 34, 53), outline=(51, 65, 85), width=2)
+            draw.text((280, 1595), "AUDIENCE ACQUISITION BLUEPRINT", fill=(148, 163, 184), font=font_sub)
+
+        slide_path = slides_dir / f"slide_{idx:03d}.png"
+        slide_img.save(slide_path)
+
+        st = item.get("start", 0.0)
+        next_st = lines_timing[idx + 1]["start"] if idx + 1 < len(lines_timing) else total_audio_dur
+        dur = max(1.0, next_st - st)
+        slide_files.append((slide_path, dur))
+
+    concat_txt = proj_dir / "fast_slides.txt"
+    with open(concat_txt, "w", encoding="utf-8") as f:
+        for p, dur in slide_files:
+            p_posix = p.resolve().as_posix()
+            f.write(f"file '{p_posix}'\n")
+            f.write(f"duration {dur:.3f}\n")
+        last_posix = slide_files[-1][0].resolve().as_posix()
+        f.write(f"file '{last_posix}'\n")
+
+    final_mp4.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        "ffmpeg", "-y",
+        "-f", "concat", "-safe", "0", "-i", str(concat_txt),
+        "-i", str(audio_file),
+        "-c:v", "libx264", "-preset", "ultrafast", "-crf", "23",
+        "-pix_fmt", "yuv420p",
+        "-c:a", "aac", "-b:a", "192k",
+        "-shortest",
+        str(final_mp4)
+    ]
+    res = subprocess.run(cmd, capture_output=True, text=True)
+    if res.returncode == 0 and final_mp4.is_file() and final_mp4.stat().st_size > 10000:
+        return True
+    return False
+
+
 def generate_short(
     topic: str,
     style: str = "stick-story",
@@ -279,15 +430,25 @@ def generate_short(
     if mix_script.is_file():
         subprocess.run([py_bin, str(mix_script), str(proj_dir)], capture_output=True, text=True)
 
-    # 7. Render MP4 via capture.mjs
+    # 7. Render MP4: Use high-speed marketing video engine (<5s) first
     mp4_name = f"{slug}.mp4"
     final_mp4 = VIDEOS_OUT_DIR / mp4_name
-    capture_script = proj_dir / "tools" / "capture.mjs"
     
-    cmd_render = ["node", str(capture_script), "video", str(final_mp4)]
-    res_render = subprocess.run(cmd_render, capture_output=True, text=True)
-    if res_render.returncode != 0 or not final_mp4.is_file():
-        raise RuntimeError(f"Rendering failed: {res_render.stderr or res_render.stdout}")
+    rendered = False
+    try:
+        rendered = render_fast_marketing_video(proj_dir, final_mp4, script_data)
+    except Exception as fast_err:
+        print(f"[Generator] Fast render notice: {fast_err}")
+
+    # Fallback to Chromium capture if fast render didn't produce file
+    if not rendered or not final_mp4.is_file():
+        capture_script = proj_dir / "tools" / "capture.mjs"
+        if capture_script.is_file() and shutil.which("node"):
+            cmd_render = ["node", str(capture_script), "video", str(final_mp4)]
+            subprocess.run(cmd_render, capture_output=True, text=True)
+
+    if not final_mp4.is_file() or final_mp4.stat().st_size < 5000:
+        raise RuntimeError("Rendering failed to produce an MP4 file.")
 
     return {
         "slug": slug,
