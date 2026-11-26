@@ -34,7 +34,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Persistent status store
+# Persistent status store (Disk + Supabase sync)
 JOBS_FILE = PROJECT_ROOT / "output" / "jobs.json"
 
 def load_jobs() -> dict:
@@ -48,16 +48,75 @@ def load_jobs() -> dict:
 
 JOBS_STORE = load_jobs()
 
+def sync_job_to_supabase(job_id: str, job_data: dict):
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        return
+    try:
+        import urllib.request
+        endpoint = f"{SUPABASE_URL.rstrip('/')}/rest/v1/render_jobs"
+        payload = {
+            "job_id": job_id,
+            "status": job_data.get("status", "PENDING"),
+            "topic": job_data.get("topic", ""),
+            "style": job_data.get("style", "stick-story"),
+            "voice": job_data.get("voice", "am_puck"),
+            "music": job_data.get("music", "bed"),
+            "speed": float(job_data.get("speed", 1.0)),
+            "video_url": job_data.get("video_url") or job_data.get("storage_url"),
+            "error_message": job_data.get("error_message")
+        }
+        body = json.dumps(payload).encode("utf-8")
+        req = urllib.request.Request(
+            endpoint,
+            data=body,
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Content-Type": "application/json",
+                "Prefer": "resolution=merge-duplicates"
+            },
+            method="POST"
+        )
+        with urllib.request.urlopen(req, timeout=5):
+            pass
+    except Exception as e:
+        print(f"[Worker] Supabase job sync notice: {e}")
+
+def fetch_job_from_supabase(job_id: str) -> Optional[dict]:
+    if not (SUPABASE_URL and SUPABASE_KEY):
+        return None
+    try:
+        import urllib.request
+        endpoint = f"{SUPABASE_URL.rstrip('/')}/rest/v1/render_jobs?job_id=eq.{job_id}&select=*"
+        req = urllib.request.Request(
+            endpoint,
+            headers={
+                "apikey": SUPABASE_KEY,
+                "Authorization": f"Bearer {SUPABASE_KEY}",
+                "Accept": "application/json"
+            }
+        )
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            rows = json.loads(resp.read().decode())
+            if rows:
+                return rows[0]
+    except Exception as e:
+        print(f"[Worker] Supabase job fetch notice: {e}")
+    return None
+
 def save_job(job_id: str, job_data: dict):
     JOBS_STORE[job_id] = job_data
+    # 1. Local disk
     try:
         JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
         jobs = load_jobs()
         jobs[job_id] = job_data
         with open(JOBS_FILE, "w", encoding="utf-8") as f:
             json.dump(jobs, f, indent=2)
-    except Exception as e:
-        print(f"[Worker] Could not persist job {job_id}: {e}")
+    except Exception:
+        pass
+    # 2. Supabase Cloud Sync
+    sync_job_to_supabase(job_id, job_data)
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
@@ -177,7 +236,11 @@ def get_job_status(job_id: str):
         if job_id in disk:
             JOBS_STORE[job_id] = disk[job_id]
         else:
-            raise HTTPException(status_code=404, detail="Job not found")
+            sb_job = fetch_job_from_supabase(job_id)
+            if sb_job:
+                JOBS_STORE[job_id] = sb_job
+            else:
+                raise HTTPException(status_code=404, detail="Job not found")
     return JOBS_STORE[job_id]
 
 
