@@ -1369,39 +1369,44 @@
           while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 4000));
             attempts++;
+            let jobData = null;
             try {
               const pollRes = await fetch(data.poll_url);
               if (pollRes.ok) {
-                const jobData = await pollRes.json();
-                lastJobStatus = jobData.status || lastJobStatus;
-                if (jobData.error) lastError = jobData.error;
-                if (jobData.status === 'COMPLETED') {
-                  data = {
-                    status: 'success',
-                    video: jobData.video || {
-                      slug: jobData.job_id,
-                      video_name: `${jobData.job_id}.mp4`,
-                      title: jobData.topic || topic,
-                      video_path: jobData.video_url || '',
-                    },
-                    url: jobData.video_url || jobData.storage_url,
-                    caption: `Marketing concept for: ${jobData.topic || topic}`,
-                    hashtags: ['InstagramMarketing', 'AdSyncCloud']
-                  };
-                  completed = true;
-                  break;
-                } else if (jobData.status === 'FAILED') {
-                  throw new Error(jobData.error_message || jobData.error || 'Cloud render failed');
-                } else if (jobData.status === 'UNKNOWN' && jobData.error) {
-                  spinner.textContent = `☁️ Connecting to worker: ${jobData.error} (${attempts * 4}s elapsed)...`;
-                } else {
-                  spinner.textContent = `☁️ Cloud Worker status: ${jobData.status} (${attempts * 4}s elapsed)...`;
-                }
+                jobData = await pollRes.json();
               }
-            } catch (pollErr) {
-              if (pollErr.message && pollErr.message.includes('Cloud render failed')) {
-                throw pollErr;
-              }
+            } catch (netErr) {
+              continue;
+            }
+
+            if (!jobData) continue;
+
+            lastJobStatus = jobData.status || lastJobStatus;
+            if (jobData.error) lastError = jobData.error;
+            if (jobData.error_message) lastError = jobData.error_message;
+
+            if (jobData.status === 'COMPLETED') {
+              data = {
+                status: 'success',
+                video: jobData.video || {
+                  slug: jobData.job_id,
+                  video_name: `${jobData.job_id}.mp4`,
+                  title: jobData.topic || topic,
+                  video_path: jobData.video_url || '',
+                },
+                url: jobData.video_url || jobData.storage_url,
+                caption: `Marketing concept for: ${jobData.topic || topic}`,
+                hashtags: ['InstagramMarketing', 'AdSyncCloud']
+              };
+              completed = true;
+              break;
+            } else if (jobData.status === 'FAILED') {
+              const failDetail = jobData.error_message || jobData.error || 'Cloud rendering encountered an error';
+              throw new Error(`Cloud worker job failed: ${failDetail}`);
+            } else if (jobData.status === 'UNKNOWN' && jobData.error) {
+              spinner.textContent = `☁️ Connecting to worker: ${jobData.error} (${attempts * 4}s elapsed)...`;
+            } else {
+              spinner.textContent = `☁️ Cloud Worker status: ${jobData.status} (${attempts * 4}s elapsed)...`;
             }
           }
 

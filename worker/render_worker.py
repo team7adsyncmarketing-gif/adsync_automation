@@ -34,8 +34,30 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# In-memory status store with database sync
-JOBS_STORE = {}
+# Persistent status store
+JOBS_FILE = PROJECT_ROOT / "output" / "jobs.json"
+
+def load_jobs() -> dict:
+    if JOBS_FILE.is_file():
+        try:
+            with open(JOBS_FILE, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except Exception:
+            pass
+    return {}
+
+JOBS_STORE = load_jobs()
+
+def save_job(job_id: str, job_data: dict):
+    JOBS_STORE[job_id] = job_data
+    try:
+        JOBS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        jobs = load_jobs()
+        jobs[job_id] = job_data
+        with open(JOBS_FILE, "w", encoding="utf-8") as f:
+            json.dump(jobs, f, indent=2)
+    except Exception as e:
+        print(f"[Worker] Could not persist job {job_id}: {e}")
 
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
@@ -55,6 +77,7 @@ def execute_cloud_render(job_id: str, req: RenderJobRequest):
     """Background task executing the rendering pipeline and uploading to Supabase Storage."""
     JOBS_STORE[job_id]["status"] = "PROCESSING"
     JOBS_STORE[job_id]["updated_at"] = datetime.datetime.utcnow().isoformat()
+    save_job(job_id, JOBS_STORE[job_id])
 
     try:
         # 1. Run Faceless Shorts rendering
@@ -92,11 +115,13 @@ def execute_cloud_render(job_id: str, req: RenderJobRequest):
         JOBS_STORE[job_id]["video_url"] = public_url or f"/videos/{video_name}"
         JOBS_STORE[job_id]["storage_url"] = public_url
         JOBS_STORE[job_id]["updated_at"] = datetime.datetime.utcnow().isoformat()
+        save_job(job_id, JOBS_STORE[job_id])
 
     except Exception as err:
         JOBS_STORE[job_id]["status"] = "FAILED"
         JOBS_STORE[job_id]["error_message"] = str(err)
         JOBS_STORE[job_id]["updated_at"] = datetime.datetime.utcnow().isoformat()
+        save_job(job_id, JOBS_STORE[job_id])
         print(f"[Worker Error] Job {job_id} failed: {err}")
 
 
@@ -114,7 +139,7 @@ def healthcheck():
 @app.post("/render")
 def enqueue_render(req: RenderJobRequest, bg_tasks: BackgroundTasks):
     job_id = req.job_id or f"job_{uuid.uuid4().hex[:12]}"
-    JOBS_STORE[job_id] = {
+    job_record = {
         "job_id": job_id,
         "status": "PENDING",
         "topic": req.topic,
@@ -128,6 +153,7 @@ def enqueue_render(req: RenderJobRequest, bg_tasks: BackgroundTasks):
         "video_url": None,
         "error_message": None
     }
+    save_job(job_id, job_record)
 
     bg_tasks.add_task(execute_cloud_render, job_id, req)
 
@@ -141,13 +167,17 @@ def enqueue_render(req: RenderJobRequest, bg_tasks: BackgroundTasks):
 @app.get("/jobs")
 def list_jobs():
     """List all registered render jobs and states."""
-    return list(JOBS_STORE.values())
+    return list(load_jobs().values())
 
 
 @app.get("/status/{job_id}")
 def get_job_status(job_id: str):
     if job_id not in JOBS_STORE:
-        raise HTTPException(status_code=404, detail="Job not found")
+        disk = load_jobs()
+        if job_id in disk:
+            JOBS_STORE[job_id] = disk[job_id]
+        else:
+            raise HTTPException(status_code=404, detail="Job not found")
     return JOBS_STORE[job_id]
 
 
