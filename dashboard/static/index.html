@@ -1364,6 +1364,7 @@
           const maxAttempts = 150; // Allow up to 10 minutes for model downloads and full 1080x1920 video compile
           let attempts = 0;
           let lastJobStatus = 'PROCESSING';
+          let lastError = '';
           let completed = false;
           while (attempts < maxAttempts) {
             await new Promise(r => setTimeout(r, 4000));
@@ -1373,6 +1374,7 @@
               if (pollRes.ok) {
                 const jobData = await pollRes.json();
                 lastJobStatus = jobData.status || lastJobStatus;
+                if (jobData.error) lastError = jobData.error;
                 if (jobData.status === 'COMPLETED') {
                   data = {
                     status: 'success',
@@ -1389,7 +1391,9 @@
                   completed = true;
                   break;
                 } else if (jobData.status === 'FAILED') {
-                  throw new Error(jobData.error_message || 'Cloud render failed');
+                  throw new Error(jobData.error_message || jobData.error || 'Cloud render failed');
+                } else if (jobData.status === 'UNKNOWN' && jobData.error) {
+                  spinner.textContent = `☁️ Connecting to worker: ${jobData.error} (${attempts * 4}s elapsed)...`;
                 } else {
                   spinner.textContent = `☁️ Cloud Worker status: ${jobData.status} (${attempts * 4}s elapsed)...`;
                 }
@@ -1402,7 +1406,8 @@
           }
 
           if (!completed || !data.video) {
-            throw new Error(`Video rendering is taking longer than expected (status: ${lastJobStatus}). The background worker is still processing this job. Please check 'Publication History' or refresh in a couple minutes.`);
+            const errDetail = lastError ? ` — Detail: ${lastError}` : '';
+            throw new Error(`Video rendering is taking longer than expected (status: ${lastJobStatus}${errDetail}). The background worker is still processing this job. Please check 'Publication History' or refresh in a couple minutes.`);
           }
         }
 

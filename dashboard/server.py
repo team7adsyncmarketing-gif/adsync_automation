@@ -609,9 +609,19 @@ def check_job_status_api(job_id: str):
     if cloud_worker_url:
         try:
             import urllib.request
-            req = urllib.request.Request(f"{cloud_worker_url}/status/{job_id}")
-            with urllib.request.urlopen(req, timeout=5) as resp:
+            import urllib.error
+            req = urllib.request.Request(
+                f"{cloud_worker_url}/status/{job_id}",
+                headers={"User-Agent": "AdSync-ControlCenter/1.0", "Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=15) as resp:
                 return json.loads(resp.read().decode())
+        except urllib.error.HTTPError as http_err:
+            try:
+                body = json.loads(http_err.read().decode())
+                return {"job_id": job_id, "status": "FAILED", "error": body.get("detail", f"HTTP {http_err.code}: {http_err.reason}")}
+            except Exception:
+                return {"job_id": job_id, "status": "UNKNOWN", "error": f"HTTP {http_err.code}: {http_err.reason}"}
         except Exception as e:
             return {"job_id": job_id, "status": "UNKNOWN", "error": str(e)}
 
